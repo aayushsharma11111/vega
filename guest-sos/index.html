@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emergency SOS</title>
+
+<style>
+:root {
+    --bg: #0f172a;
+    --text: #ffffff;
+    --accent: #ff3b3b;
+    --card: #1e293b;
+}
+
+.light {
+    --bg: #f1f5f9;
+    --text: #0f172a;
+    --card: #ffffff;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.container {
+    text-align: center;
+}
+
+.toggle {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: var(--card);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--text);
+    font-weight: bold;
+}
+
+.sos-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.pulse {
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: rgba(255, 59, 59, 0.4);
+    animation: pulse 2s infinite;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.pulse:nth-child(2) { animation-delay: 0.6s; }
+.pulse:nth-child(3) { animation-delay: 1.2s; }
+
+@keyframes pulse {
+    0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.7; }
+    100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+}
+
+.sos-btn {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    font-size: 28px;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 0 30px rgba(255, 59, 59, 0.6);
+}
+
+.progress-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: rotate(-90deg);
+}
+
+circle {
+    fill: transparent;
+    stroke: #ffffff;
+    stroke-width: 6;
+    stroke-dasharray: 565;
+    stroke-dashoffset: 565;
+    transition: stroke-dashoffset 0.1s linear;
+}
+
+.status {
+    margin-top: 20px;
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+.success {
+    color: #22c55e;
+    font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+
+<button class="toggle" onclick="toggleTheme()">🌙 / ☀️</button>
+
+<div class="container">
+    <h2>Emergency SOS</h2>
+
+    <div class="sos-wrapper">
+        <div class="pulse"></div>
+        <div class="pulse"></div>
+        <div class="pulse"></div>
+
+        <svg class="progress-ring" width="180" height="180">
+            <circle cx="90" cy="90" r="90"></circle>
+        </svg>
+
+        <button class="sos-btn"
+            onmousedown="startHold()"
+            onmouseup="cancelHold()"
+            onmouseleave="cancelHold()"
+            ontouchstart="startHold()"
+            ontouchend="cancelHold()">
+            SOS
+        </button>
+    </div>
+
+    <div class="status" id="statusText">
+        Hold for 1.2 seconds to send alert
+    </div>
+</div>
+
+<!-- 🔥 Firebase + Firestore -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDcOBkxWNPVWU_akmVy0wNqge8Ko0T8y24",
+  authDomain: "hotel-sos-system.firebaseapp.com",
+  projectId: "hotel-sos-system",
+  storageBucket: "hotel-sos-system.firebasestorage.app",
+  messagingSenderId: "899763466019",
+  appId: "1:899763466019:web:5a83f5ca78548af06c6696"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Make db global
+window.db = db;
+window.addDoc = addDoc;
+window.collection = collection;
+</script>
+
+<!-- 🔥 Your Logic -->
+<script>
+let holdTime = 1200;
+let interval;
+let progress = 0;
+const circle = document.querySelector("circle");
+const statusText = document.getElementById("statusText");
+
+function startHold() {
+    progress = 0;
+    circle.style.strokeDashoffset = 565;
+
+    interval = setInterval(() => {
+        progress += 100;
+        let offset = 565 - (565 * (progress / holdTime));
+        circle.style.strokeDashoffset = offset;
+
+        if (progress >= holdTime) {
+            clearInterval(interval);
+            sendSOS();
+        }
+    }, 100);
+}
+
+function cancelHold() {
+    clearInterval(interval);
+    circle.style.strokeDashoffset = 565;
+}
+
+async function sendSOS() {
+    try {
+        await window.addDoc(window.collection(window.db, "emergencies"), {
+            room: "101",
+            status: "SOS",
+            time: new Date().toLocaleString()
+        });
+
+        statusText.innerHTML = "🚨 Alert Sent Successfully!";
+        statusText.classList.add("success");
+
+        console.log("SOS Sent to Firebase");
+    } catch (error) {
+        console.error("Error:", error);
+        statusText.innerHTML = "❌ Failed to send alert";
+    }
+}
+
+function toggleTheme() {
+    document.body.classList.toggle("light");
+}
+</script>
+
+</body>
+</html>
