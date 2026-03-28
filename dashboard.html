@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Staff Dashboard</title>
+</head>
+
+<body style="margin:0; font-family: Arial; background: #eef2f7;">
+
+  <div style="background:#2c3e50; color:white; padding:15px; font-size:20px;">
+    🏨 Hotel SOS Dashboard
+  </div>
+
+  <div style="text-align:center; margin-top:80px;">
+    <h1>Welcome, Staff 👋</h1>
+    <p id="userEmail" style="color:gray;"></p>
+
+    <div style="margin-top:40px;">
+      <button style="padding:15px 25px; margin:10px; font-size:16px; border:none; border-radius:5px; background:#3498db; color:white;">
+        📋 View Requests
+      </button>
+
+      <button style="padding:15px 25px; margin:10px; font-size:16px; border:none; border-radius:5px; background:#27ae60; color:white;">
+        🏨 Manage Rooms
+      </button>
+
+      <button onclick="logout()" style="padding:15px 25px; margin:10px; font-size:16px; border:none; border-radius:5px; background:#e74c3c; color:white;">
+        🚪 Logout
+      </button>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDriQ0LoWT90BlzKhCvGF4kgW4cb24QhKU",
+      authDomain: "vega-c7ee5.firebaseapp.com",
+      projectId: "vega-c7ee5",
+      storageBucket: "vega-c7ee5.firebasestorage.app",
+      messagingSenderId: "1000278564320",
+      appId: "1:1000278564320:web:42489358067051edd61f85",
+      measurementId: "G-HMWPYCNCB4"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+
+    // Show logged-in user email
+    firebase.auth().onAuthStateChanged((user) => {
+      if (user) {
+        document.getElementById("userEmail").innerText = "Logged in as: " + user.email;
+      } else {
+        window.location.href = "index.html";
+      }
+    });
+
+    function logout() {
+      firebase.auth().signOut().then(() => {
+        window.location.href = "index.html";
+      });
+    }
+  </script>
+
+</body>
+</html>
