@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Staff Dashboard</title>
+<style>
+body { background: #121212; color: #fff; font-family: sans-serif; padding: 20px; }
+h1 { margin-bottom: 20px; }
+#start-audio { margin-bottom: 20px; padding: 10px 15px; background:#3a86ff; border:none; color:#fff; border-radius:5px; cursor:pointer; }
+
+#floor-map {
+  width: 100%;
+  height: 200px;
+  background: #2e2e2e;
+  border-radius: 6px;
+  position: relative;
+  margin-bottom: 30px;
+}
+.room-dot {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  opacity: 0.8;
+  border: 2px solid #fff;
+}
+.pulse { animation: pulse 1s infinite alternate; }
+@keyframes pulse { 0% { transform: scale(1); opacity:0.8;} 100% { transform: scale(1.4); opacity:1;} }
+
+.alert-card {
+  background: #1e1e1e;
+  color: #fff;
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+.alert-header { display:flex; justify-content:space-between; align-items:center; }
+button { padding:5px 10px; border:none; border-radius:4px; cursor:pointer; }
+.responding-btn { background:#3a86ff; color:#fff; }
+.resolve-btn { background:#06d6a0; color:#fff; }
+.flash-alert { animation: flash 1s infinite alternate; }
+@keyframes flash { 0% {background:#1e1e1e;} 50% {background:#333;} 100% {background:#1e1e1e;} }
+</style>
+</head>
+<body>
+<h1>Staff Dashboard</h1>
+<button id="start-audio">Start Dashboard</button>
+<div id="floor-map"></div>
+<div id="alert-list"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDriQ0LoWT90BlzKhCvGF4kgW4cb24QhKU",
+  authDomain: "vega-c7ee5.firebaseapp.com",
+  databaseURL: "https://vega-c7ee5-default-rtdb.firebaseio.com",
+  projectId: "vega-c7ee5",
+  storageBucket: "vega-c7ee5.firebasestorage.app",
+  messagingSenderId: "1000278564320",
+  appId: "1:1000278564320:web:42489358067051edd61f85",
+  measurementId: "G-HMWPYCNCB4"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+const alertList = document.getElementById('alert-list');
+const floorMap = document.getElementById('floor-map');
+const alertCards = {};
+let audioUnlocked = false;
+
+// Preload audio
+const audioCritical = new Audio('https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg');
+const audioHigh     = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+const audioMedium   = new Audio('https://actions.google.com/sounds/v1/alarms/soft_notification.ogg');
+
+document.getElementById('start-audio').addEventListener('click', ()=>{
+  audioUnlocked = true;
+  [audioCritical,audioHigh,audioMedium].forEach(a=>a.play().then(()=>a.pause()));
+  document.getElementById('start-audio').style.display='none';
+});
+
+// Floorplan coordinates
+const floorplan = {
+  "101": {x:10, y:30},
+  "102": {x:40, y:20},
+  "103": {x:70, y:50},
+  "104": {x:20, y:70},
+  "105": {x:60, y:80},
+};
+
+// Update floor map
+function updateFloorMap(){
+  floorMap.innerHTML="";
+  Object.keys(floorplan).forEach(r=>{
+    const activeAlerts = Object.values(alertCards).filter(c=>c.dataset.room===r && c.dataset.status==='active');
+    if(activeAlerts.length>0){
+      const highestSeverity = activeAlerts.some(c=>c.dataset.severity==='critical') ? 'critical' :
+                             activeAlerts.some(c=>c.dataset.severity==='high') ? 'high':'medium';
+      const dot = document.createElement('div');
+      dot.classList.add('room-dot');
+      if(highestSeverity==='critical') dot.style.background='#E8342A';
+      else if(highestSeverity==='high') dot.style.background='#F26419';
+      else dot.style.background='#FFD700';
+      if(highestSeverity==='critical') dot.classList.add('pulse');
+      dot.style.left = floorplan[r].x + '%';
+      dot.style.top = floorplan[r].y + '%';
+      floorMap.appendChild(dot);
+    }
+  });
+}
+
+// Function to safely remove a card
+function removeAlertCard(docId) {
+  if (alertCards[docId]) { 
+    alertCards[docId].remove(); 
+    delete alertCards[docId]; 
+    updateFloorMap(); 
+  }
+}
+
+// Create or update alert card
+function createOrUpdateCard(doc){
+  const alert = doc.data();
+  let card = alertCards[doc.id];
+  
+  if(!card){
+    card = document.createElement('div');
+    card.classList.add('alert-card');
+    card.dataset.room = alert.room;
+    card.dataset.status = alert.status;
+    card.dataset.severity = alert.severity;
+    card.dataset.docId = doc.id; 
+    
+    // Stash the timestamp locally to avoid fetching repeatedly 
+    card.dataset.createdAt = alert.timestamp ? alert.timestamp.toMillis() : Date.now();
+
+    let borderColor = alert.severity==='critical'?'#E8342A':alert.severity==='high'?'#F26419':'#FFD700';
+    card.style.borderLeft = `5px solid ${borderColor}`;
+
+    card.innerHTML=`
+      <div class="alert-header">
+        <strong>Room ${alert.room}</strong>
+        <span>${alert.severity}</span>
+      </div>
+      <p>${alert.aiSummary}</p>
+      <p class="time-elapsed">0 min ago</p>
+      <button class="responding-btn">Responding</button>
+      <button class="resolve-btn">Resolve</button>
+    `;
+
+    // Responding button
+    const resBtn = card.querySelector('.responding-btn');
+    if (alert.status === 'responding') {
+      resBtn.disabled = true;
+      resBtn.textContent = 'Responded';
+    } else {
+      resBtn.addEventListener('click', async (e)=>{
+        try{
+          const docId = card.dataset.docId;
+          
+          // Disable button while pending
+          e.target.disabled = true; 
+          e.target.textContent = 'Responded';
+
+          await db.collection('alerts').doc(docId).update({status:'responding'});
+          card.dataset.status='responding';
+          card.classList.remove('flash-alert');
+          updateFloorMap();
+        }catch(err){ 
+            console.error(err); 
+            window.alert('Failed to update status'); 
+            e.target.disabled = false;
+            e.target.textContent = 'Responding';
+        }
+      });
+    }
+
+    // Resolve Button
+    card.querySelector('.resolve-btn').addEventListener('click', async (e)=>{
+      try{
+        e.target.disabled = true;
+        e.target.textContent = 'Resolving...';
+        const docId = card.dataset.docId;
+        
+        await db.collection('alerts').doc(docId).update({
+          status:'resolved',
+          deleteAt: firebase.firestore.Timestamp.fromDate(new Date(Date.now()+60*60*1000))
+        });
+        
+        // Make the card disappear once resolved!
+        removeAlertCard(docId);
+      }catch(err){ 
+          console.error(err); 
+          e.target.disabled = false;
+          e.target.textContent = 'Resolve';
+          window.alert('Failed to resolve alert'); 
+      }
+    });
+
+    alertList.appendChild(card);
+    alertCards[doc.id] = card;
+
+    // Sound + vibration
+    if(audioUnlocked){
+      let audioUrl, vibrationPattern;
+      switch(alert.severity){
+        case 'critical': audioUrl=audioCritical.src; vibrationPattern=[200,100,200]; card.classList.add('flash-alert'); break;
+        case 'high': audioUrl=audioHigh.src; vibrationPattern=[150,50,150]; card.classList.add('flash-alert'); break;
+        case 'medium': audioUrl=audioMedium.src; vibrationPattern=[100,50]; card.classList.add('flash-alert'); break;
+      }
+      if(audioUrl){ const s = new Audio(audioUrl); s.play().catch(()=>{}); }
+      if(vibrationPattern && navigator.vibrate) navigator.vibrate(vibrationPattern);
+    }
+
+  }else{
+    card.dataset.status = alert.status;
+  }
+
+  // Initial time setup
+  if (alert.timestamp) {
+      const timeElapsedMinutes = Math.floor((Date.now()-alert.timestamp.toDate())/1000/60);
+      card.querySelector('.time-elapsed').textContent = `${timeElapsedMinutes} min ago`;
+  }
+  updateFloorMap();
+}
+
+// Firestore listener
+// Optimization: Filter at the database level so we don't download resolved alerts
+db.collection('alerts').where('status', 'in', ['active', 'responding']).onSnapshot(snapshot=>{
+  snapshot.docChanges().forEach(change=>{
+    const doc = change.doc;
+    const data = doc.data();
+
+    // If a document was specifically removed by someone else
+    if(change.type==='removed'){
+      removeAlertCard(doc.id);
+      return;
+    }
+    
+    // Check if expected to delete
+    if(data.deleteAt && data.deleteAt.toDate()<=new Date()){
+      removeAlertCard(doc.id);
+      return;
+    }
+    
+    // If the data was updated from active/responding to 'resolved', we want to get rid of it.
+    if (data.status === 'resolved') {
+      removeAlertCard(doc.id);
+    } else if(data.status==='active' || data.status==='responding'){
+      createOrUpdateCard(doc);
+    }
+  });
+});
+
+// Calculate offline elapsed time instead of fetching database continuously!
+setInterval(()=>{
+  Object.values(alertCards).forEach(card => {
+     let createdAt = card.dataset.createdAt;
+     if (createdAt) {
+         const mins = Math.floor((Date.now() - parseInt(createdAt)) / 1000 / 60);
+         card.querySelector('.time-elapsed').textContent = `${mins} min ago`;
+     }
+  });
+}, 60000);
+
+</script>
+</body>
+</html>
