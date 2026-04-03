@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<html lang="en">
 
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,13 +13,11 @@
     --accent: #ff3b3b;
     --card: #1e293b;
 }
-
 .light {
     --bg: #f1f5f9;
     --text: #0f172a;
     --card: #ffffff;
 }
-
 body {
     margin: 0;
     font-family: "Segoe UI", sans-serif;
@@ -30,11 +28,7 @@ body {
     align-items: center;
     height: 100vh;
 }
-
-.container {
-    text-align: center;
-}
-
+.container { text-align: center; }
 .toggle {
     position: absolute;
     top: 20px;
@@ -47,12 +41,7 @@ body {
     color: var(--text);
     font-weight: bold;
 }
-
-.sos-wrapper {
-    position: relative;
-    display: inline-block;
-}
-
+.sos-wrapper { position: relative; display: inline-block; }
 .pulse {
     position: absolute;
     width: 220px;
@@ -64,15 +53,12 @@ body {
     left: 50%;
     transform: translate(-50%, -50%);
 }
-
 .pulse:nth-child(2) { animation-delay: 0.6s; }
 .pulse:nth-child(3) { animation-delay: 1.2s; }
-
 @keyframes pulse {
     0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.7; }
     100% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
 }
-
 .sos-btn {
     width: 180px;
     height: 180px;
@@ -87,14 +73,12 @@ body {
     z-index: 2;
     box-shadow: 0 0 30px rgba(255, 59, 59, 0.6);
 }
-
 .progress-ring {
     position: absolute;
     top: 0;
     left: 0;
     transform: rotate(-90deg);
 }
-
 circle {
     fill: transparent;
     stroke: #ffffff;
@@ -103,18 +87,18 @@ circle {
     stroke-dashoffset: 565;
     transition: stroke-dashoffset 0.1s linear;
 }
-
 .status {
     margin-top: 20px;
     font-size: 16px;
-    opacity: 0.8;
+    opacity: 0.85;
+    min-height: 24px;
 }
-
 .success {
     color: #22c55e;
     font-weight: bold;
 }
 </style>
+
 </head>
 
 <body>
@@ -146,81 +130,160 @@ circle {
     <div class="status" id="statusText">
         Hold for 1.2 seconds to send alert
     </div>
+
 </div>
 
-<!-- 🔥 Firebase + Firestore -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-storage.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDcOBkxWNPVWU_akmVy0wNqge8Ko0T8y24",
-  authDomain: "hotel-sos-system.firebaseapp.com",
-  projectId: "hotel-sos-system",
-  storageBucket: "hotel-sos-system.firebasestorage.app",
-  messagingSenderId: "899763466019",
-  appId: "1:899763466019:web:5a83f5ca78548af06c6696"
+  apiKey: "AIzaSyDriQ0LowT90BLzKhCvGF4kgW4cb24QhKU",
+  authDomain: "vega-c7ee5.firebaseapp.com",
+  projectId: "vega-c7ee5",
+  storageBucket: "vega-c7ee5.firebasestorage.app"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
-// Make db global
-window.db = db;
-window.addDoc = addDoc;
-window.collection = collection;
-</script>
-
-<!-- 🔥 Your Logic -->
-<script>
-let holdTime = 1200;
-let interval;
-let progress = 0;
 const circle = document.querySelector("circle");
 const statusText = document.getElementById("statusText");
 
-function startHold() {
+let holdTime = 1200;
+let interval;
+let progress = 0;
+let isHolding = false;
+
+let stream;
+let mediaRecorder;
+let audioChunks = [];
+let currentEmergencyRef = null;
+
+function setStatus(text, success=false){
+    statusText.textContent = text;
+    statusText.classList.toggle("success", success);
+}
+
+async function initMic(){
+    try{
+        stream = await navigator.mediaDevices.getUserMedia({audio:true});
+        setStatus("🎤 Mic ready");
+        console.log("Mic access granted.");
+
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+        mediaRecorder.onstop = async ()=>{
+            const blob = new Blob(audioChunks,{type:"audio/webm"});
+            audioChunks = [];
+
+            const fileRef = ref(storage,"alerts/"+Date.now()+".webm");
+            try {
+                await uploadBytes(fileRef, blob);
+                console.log("Audio recording uploaded successfully.");
+                
+                try {
+                    const downloadUrl = await getDownloadURL(fileRef);
+                    console.log("Download URL retrieved:", downloadUrl);
+                    if (currentEmergencyRef) {
+                        await updateDoc(currentEmergencyRef, { 
+                            audioUrl: downloadUrl,
+                            timestamp: serverTimestamp(),
+                            status: "active"
+                        });
+                        console.log("SOS document updated with audioUrl");
+                    }
+                } catch (urlErr) {
+                    console.error("Failed to retrieve download URL:", urlErr);
+                }
+            } catch (err) {
+                console.error("Audio recording upload failed:", err);
+            }
+        };
+
+    }catch(err){
+        setStatus("❌ Mic denied");
+        console.error("Mic access denied:", err);
+    }
+}
+
+async function sendSOS(){
+    try{
+        currentEmergencyRef = await addDoc(collection(db,"emergencies"),{
+            status: "active",
+            timestamp: serverTimestamp(),
+            room: typeof window.room !== 'undefined' ? window.room : "default-room",
+            category: typeof window.category !== 'undefined' ? window.category : (typeof window.selectedCategory !== 'undefined' ? window.selectedCategory : "unknown"),
+            audioUrl: ""
+        });
+
+        setStatus("🚨 Alert Sent Successfully!", true);
+        console.log("SOS alert sent successfully.");
+
+    }catch(err){
+        setStatus("❌ Failed to send alert");
+        console.error("SOS alert failed:", err);
+    }
+}
+
+function startHold(){
+    isHolding = true;
     progress = 0;
     circle.style.strokeDashoffset = 565;
 
-    interval = setInterval(() => {
+    interval = setInterval(()=>{
         progress += 100;
         let offset = 565 - (565 * (progress / holdTime));
         circle.style.strokeDashoffset = offset;
 
-        if (progress >= holdTime) {
+        if(progress >= holdTime){
             clearInterval(interval);
-            sendSOS();
+
+            sendSOS();        // 🚨 instant alert
+            startRecording(); // 🎙️ background recording
         }
-    }, 100);
+    },100);
 }
 
-function cancelHold() {
+function cancelHold(){
+    isHolding = false;
     clearInterval(interval);
     circle.style.strokeDashoffset = 565;
-}
 
-async function sendSOS() {
-    try {
-        await window.addDoc(window.collection(window.db, "emergencies"), {
-            room: "101",
-            status: "SOS",
-            time: new Date().toLocaleString()
-        });
-
-        statusText.innerHTML = "🚨 Alert Sent Successfully!";
-        statusText.classList.add("success");
-
-        console.log("SOS Sent to Firebase");
-    } catch (error) {
-        console.error("Error:", error);
-        statusText.innerHTML = "❌ Failed to send alert";
+    if(mediaRecorder && mediaRecorder.state==="recording"){
+        mediaRecorder.stop();
+        console.log("Recording stopped (cancelled manual hold).");
+        setStatus("⛔ Cancelled");
     }
 }
 
-function toggleTheme() {
+function startRecording(){
+    if(!mediaRecorder) return;
+
+    mediaRecorder.start();
+    console.log("Recording started.");
+
+    setTimeout(()=>{
+        if(mediaRecorder.state==="recording"){
+            mediaRecorder.stop();
+            console.log("Recording stopped (auto-stop after 8s).");
+        }
+    },8000);
+}
+
+function toggleTheme(){
     document.body.classList.toggle("light");
 }
+
+/* FIX BUTTON */
+window.startHold = startHold;
+window.cancelHold = cancelHold;
+window.toggleTheme = toggleTheme;
+
+initMic();
 </script>
 
 </body>
