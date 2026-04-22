@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One-Tap SOS</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+
+<style>
+  body { 
+    background: #0f0f13;
+    color: #fff; 
+    font-family: 'Outfit', sans-serif; 
+    margin: 0;
+    padding: 20px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    height: 100vh;
+  }
+
+  .container {
+    background: rgba(255,255,255,0.05);
+    border-radius: 20px;
+    padding: 30px;
+    text-align: center;
+    width: 300px;
+  }
+
+  h1 { margin-bottom: 10px; }
+
+  .room {
+    color: #aaa;
+    margin-bottom: 20px;
+  }
+
+  button {
+    width: 100%;
+    padding: 15px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+
+  #critical { background: #E8342A; color: white; }
+  #high { background: #F26419; color: white; }
+  #medium { background: #FFD700; color: black; }
+
+  #status {
+    margin-top: 15px;
+    font-weight: bold;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>Emergency SOS</h1>
+  <div class="room" id="roomDisplay"></div>
+
+  <button id="critical">Critical SOS</button>
+  <button id="high">High Alert</button>
+  <button id="medium">Medium Alert</button>
+
+  <div id="status"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDriQ0LoWT90BlzKhCvGF4kgW4cb24QhKU",
+  authDomain: "vega-c7ee5.firebaseapp.com",
+  projectId: "vega-c7ee5",
+  storageBucket: "vega-c7ee5.firebasestorage.app",
+  messagingSenderId: "1000278564320",
+  appId: "1:1000278564320:web:42489358067051edd61f85"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ✅ GET ROOM FROM URL
+const params = new URLSearchParams(window.location.search);
+const ROOM_NUMBER = params.get("room") || "101";
+
+// Show room
+document.getElementById("roomDisplay").textContent = `Room ${ROOM_NUMBER}`;
+
+async function sendAlert(severity) {
+  const statusDiv = document.getElementById('status');
+  statusDiv.textContent = "Sending...";
+
+  try {
+    await addDoc(collection(db, 'alerts'), {
+      room: ROOM_NUMBER,
+      severity: severity,
+      aiSummary: severity === 'critical' ? 'Immediate help needed!' :
+                 severity === 'high' ? 'Assistance required!' : 'Monitor situation.',
+      status: 'active',
+      timestamp: serverTimestamp(),
+      deleteAt: null
+    });
+
+    // 🔥 Feedback (vibration + flash)
+    navigator.vibrate?.([200,100,200]);
+    document.body.style.background = "rgba(255,0,0,0.2)";
+    setTimeout(()=> document.body.style.background = "", 500);
+
+    statusDiv.textContent = `✅ ${severity.toUpperCase()} alert sent!`;
+
+  } catch(err) {
+    console.error(err);
+    statusDiv.textContent = "❌ Error sending alert";
+  }
+}
+
+document.getElementById('critical').onclick = () => sendAlert('critical');
+document.getElementById('high').onclick = () => sendAlert('high');
+document.getElementById('medium').onclick = () => sendAlert('medium');
+
+</script>
+
+</body>
+</html>

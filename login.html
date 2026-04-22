@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Staff Login</title>
+</head>
+
+<body style="margin:0; font-family: Arial; background: linear-gradient(to right, #2c3e50, #3498db);">
+
+  <div style="display:flex; justify-content:center; align-items:center; height:100vh;">
+
+    <div style="background:white; padding:40px; border-radius:10px; width:300px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+
+      <h2>🏨 Hotel SOS</h2>
+      <p style="color:gray;">Staff Login</p>
+
+      <input type="email" id="email" placeholder="Email" 
+        style="width:100%; padding:10px; margin:10px 0; border-radius:5px; border:1px solid #ccc;">
+
+      <input type="password" id="password" placeholder="Password" 
+        style="width:100%; padding:10px; margin:10px 0; border-radius:5px; border:1px solid #ccc;">
+
+      <button onclick="login()" 
+        style="width:100%; padding:12px; background:#3498db; color:white; border:none; border-radius:5px; margin-top:10px; cursor:pointer;">
+        Login
+      </button>
+
+      <p id="error" style="color:red; margin-top:10px;"></p>
+
+    </div>
+
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDriQ0LoWT90BlzKhCvGF4kgW4cb24QhKU",
+      authDomain: "vega-c7ee5.firebaseapp.com",
+      projectId: "vega-c7ee5",
+      storageBucket: "vega-c7ee5.firebasestorage.app",
+      messagingSenderId: "1000278564320",
+      appId: "1:1000278564320:web:42489358067051edd61f85",
+      measurementId: "G-HMWPYCNCB4"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      firebase.auth().signInWithEmailAndPassword(email, password)
+        .then(() => {
+          // Successfully logged in! Redirect to the real dashboard.
+          window.location.href = "live-alert.html";
+        })
+        .catch(() => {
+          document.getElementById("error").innerText = "Invalid credentials — please try again";
+        });
+    }
+  </script>
+
+</body>
+</html>
