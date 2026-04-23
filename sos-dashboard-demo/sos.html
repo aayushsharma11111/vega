@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>One-Tap SOS</title>
 
-<!-- Preconnect to domains for faster font and script loading -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
@@ -28,164 +27,77 @@
     margin: 0;
     padding: 20px; 
     display: flex; 
-    flex-direction: column; 
     align-items: center; 
     justify-content: center; 
     min-height: 100vh;
-    overflow: hidden;
   }
 
   .sos-container {
     background: var(--glass-bg);
     backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
     border-radius: 24px;
     padding: 40px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     text-align: center;
     max-width: 400px;
     width: 100%;
-    z-index: 10;
   }
 
   h1 { 
-    margin: 0 0 10px 0; 
     font-size: 32px;
     font-weight: 800;
-    letter-spacing: -0.5px;
-    background: linear-gradient(135deg, #fff 0%, #a5a5a5 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
   }
 
   p.subtitle {
-    color: #a1a1aa;
-    margin-bottom: 30px;
-    font-size: 16px;
+    color: #aaa;
+    margin-bottom: 20px;
   }
 
-  .btn-group {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+  #roomDisplay {
+    margin-bottom: 20px;
+    font-size: 18px;
+    color: #00e0ff;
   }
 
   button { 
-    position: relative;
     width: 100%; 
-    padding: 20px; 
+    padding: 18px; 
+    margin: 10px 0;
     border: none; 
-    border-radius: 16px; 
+    border-radius: 12px; 
     font-size: 18px; 
     font-weight: 600;
     cursor: pointer; 
     color: #fff;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    overflow: hidden;
-    outline: none;
   }
 
-  /* Accessibility: outline when navigating with the keyboard */
-  button:focus-visible {
-    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3);
-  }
-
-  button::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: linear-gradient(rgba(255,255,255,0.1), transparent);
-    border-radius: 16px;
-  }
-
-  button:hover {
-    transform: translateY(-2px) scale(1.02);
-  }
-  
-  button:active {
-    transform: translateY(1px) scale(0.98);
-  }
-
-  #critical { 
-    background: var(--critical-color);
-    box-shadow: 0 8px 32px rgba(255, 59, 48, 0.3);
-    animation: heartbeat 2s infinite;
-  }
-  
-  #critical:hover {
-    box-shadow: 0 12px 40px rgba(255, 59, 48, 0.5);
-    animation: none;
-  }
-
-  #high { 
-    background: var(--high-color);
-    box-shadow: 0 8px 32px rgba(255, 149, 0, 0.2);
-  }
-
-  #high:hover {
-    box-shadow: 0 12px 40px rgba(255, 149, 0, 0.4);
-  }
-
-  #medium { 
-    background: var(--medium-color); 
-    color: #1a1a1a;
-    box-shadow: 0 8px 32px rgba(255, 204, 0, 0.2);
-  }
-
-  #medium:hover {
-    box-shadow: 0 12px 40px rgba(255, 204, 0, 0.4);
-  }
-
-  #medium::before {
-    background: linear-gradient(rgba(255,255,255,0.4), transparent);
-  }
-
+  #critical { background: #ff3b30; }
+  #high { background: #ff9500; }
+  #medium { background: #ffcc00; color: black; }
 
   #status { 
-    margin-top: 25px; 
-    font-size: 16px;
-    font-weight: 600;
-    min-height: 24px;
-    opacity: 0;
-    transform: translateY(10px);
-    transition: all 0.3s ease;
-  }
-
-  #status.show {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  @keyframes heartbeat {
-    0% { transform: scale(1); }
-    14% { transform: scale(1.03); }
-    28% { transform: scale(1); }
-    42% { transform: scale(1.03); }
-    70% { transform: scale(1); }
+    margin-top: 20px; 
+    font-weight: bold;
   }
 </style>
 </head>
 <body>
 
-<main class="sos-container" aria-labelledby="sos-title">
-  <h1 id="sos-title">Emergency SOS</h1>
-  <p class="subtitle">Tap to dispatch immediate alerts</p>
-  
-  <div class="btn-group" role="group" aria-label="Alert Severities">
-    <button id="critical" aria-label="Dispatch Critical SOS">Critical SOS</button>
-    <button id="high" aria-label="Dispatch High Alert">High Alert</button>
-    <button id="medium" aria-label="Dispatch Medium Alert">Medium Alert</button>
-  </div>
-  
-  <div id="status" aria-live="polite"></div>
-</main>
+<div class="sos-container">
+  <h1>Emergency SOS</h1>
+  <p class="subtitle">Tap to send alert</p>
 
-<!-- Using ES Modules (Much faster and more efficient bundle) -->
+  <div id="roomDisplay"></div>
+
+  <button id="critical">Critical SOS</button>
+  <button id="high">High Alert</button>
+  <button id="medium">Medium Alert</button>
+
+  <div id="status"></div>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
   import { 
-    getFirestore, 
     initializeFirestore,
     persistentLocalCache,
     collection, 
@@ -196,66 +108,46 @@
   const firebaseConfig = {
     apiKey: "AIzaSyDriQ0LoWT90BlzKhCvGF4kgW4cb24QhKU",
     authDomain: "vega-c7ee5.firebaseapp.com",
-    databaseURL: "https://vega-c7ee5-default-rtdb.firebaseio.com",
     projectId: "vega-c7ee5",
     storageBucket: "vega-c7ee5.firebasestorage.app",
     messagingSenderId: "1000278564320",
-    appId: "1:1000278564320:web:42489358067051edd61f85",
-    measurementId: "G-HMWPYCNCB4"
+    appId: "1:1000278564320:web:42489358067051edd61f85"
   };
 
   const app = initializeApp(firebaseConfig);
-  
-  // Initialize Firestore with Offline Persistence mapping
+
   const db = initializeFirestore(app, {
     localCache: persistentLocalCache()
   });
 
-  const ROOM_NUMBER = "101";
+  // ✅ DYNAMIC ROOM FROM URL
+  const params = new URLSearchParams(window.location.search);
+  const ROOM_NUMBER = params.get("room") || "Unknown";
+
+  document.getElementById("roomDisplay").textContent = "Room: " + ROOM_NUMBER;
 
   async function sendAlert(severity) {
-    const btn = document.getElementById(severity);
-    const originalText = btn.textContent;
-    btn.textContent = "Sending...";
-    btn.setAttribute("aria-busy", "true");
-    btn.style.pointerEvents = 'none';
-
     try {
       await addDoc(collection(db, 'alerts'), {
         room: ROOM_NUMBER,
         severity: severity,
-        aiSummary: severity === 'critical' ? 'Immediate help needed!' :
-                   severity === 'high' ? 'Assistance required!' : 'Monitor situation.',
         status: 'active',
-        timestamp: serverTimestamp(),
-        deleteAt: null
+        timestamp: serverTimestamp()
       });
 
-      btn.textContent = originalText;
-      btn.setAttribute("aria-busy", "false");
-      btn.style.pointerEvents = 'auto';
-      
-      const statusDiv = document.getElementById('status');
-      let statusColor = severity === 'critical' ? '#ff3b30' : severity === 'high' ? '#ff9500' : '#ffcc00';
-      statusDiv.style.color = statusColor;
-      statusDiv.textContent = `✅ ${severity.charAt(0).toUpperCase()+severity.slice(1)} alert dispatched!`;
-      statusDiv.classList.add('show');
-      
-      setTimeout(()=>{
-        statusDiv.classList.remove('show');
-      }, 3000);
-      
-    } catch(err) {
+      document.getElementById("status").innerText =
+        "✅ " + severity.toUpperCase() + " alert sent!";
+    } catch (err) {
+      document.getElementById("status").innerText =
+        "❌ Error sending alert";
       console.error(err);
-      btn.textContent = "Error. Try Again.";
-      btn.setAttribute("aria-busy", "false");
-      btn.style.pointerEvents = 'auto';
     }
   }
 
-  document.getElementById('critical').addEventListener('click', () => sendAlert('critical'));
-  document.getElementById('high').addEventListener('click', () => sendAlert('high'));
-  document.getElementById('medium').addEventListener('click', () => sendAlert('medium'));
+  document.getElementById('critical').onclick = () => sendAlert('critical');
+  document.getElementById('high').onclick = () => sendAlert('high');
+  document.getElementById('medium').onclick = () => sendAlert('medium');
 </script>
+
 </body>
 </html>
